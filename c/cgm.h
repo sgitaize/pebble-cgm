@@ -22,6 +22,7 @@ typedef struct {
   int32_t ts;         // reading time (Unix seconds)
   int32_t sgv;        // in your display unit; <= 0 = none
   char value[8];      // e.g. "142" or "7.9"
+  char delta_text[8]; // e.g. "+3", "-0.2"
   char trend[8];      // e.g. "^", "->", "vv"
 } CgmLast;
 

@@ -24,6 +24,7 @@ bool cgm_last_load(uint32_t persist_key, CgmLast *last, int max_age_s) {
   }
   if (time(NULL) - (time_t)last->ts > max_age_s) return false;
   last->value[sizeof(last->value) - 1] = '\0';
+  last->delta_text[sizeof(last->delta_text) - 1] = '\0';
   last->trend[sizeof(last->trend) - 1] = '\0';
   return true;
 }
