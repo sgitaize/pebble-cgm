@@ -16,7 +16,7 @@ Used by [CasioCGM](https://github.com/sgitaize/casiocgm), [Nightscout-supercgm](
 | **Watch-driven wake** | PebbleKit JS timers are throttled while the phone app is in the background. The watch keeps reliable time, gets the next wake from JS and asks the phone exactly then. |
 | **Last value** | Saved on the watch and shown immediately after a restart of the face (notification, other app), aging by its timestamp – no "no connection" flash. |
 | **Status** | `OK`, `NO_DATA`, `NO_CONN`, `OLD`, `NO_APP` (iPump-mini unreachable for 15 min: "open the app"), `NO_URL`. |
-| **Robust** | Guard against XHRs that never call back, retries with backoff, mmol/L auto-detection. |
+| **Robust** | AppMessage queue with ack timeout and coalescing, search after a missed wake window, one request at a time, guard against XHRs that never call back, mmol/L auto-detection. |
 
 ## Files
 
@@ -27,6 +27,7 @@ c/cgm.c
 docs/integration.md   step-by-step integration, message keys, config fields
 docs/ipump-mini.md    the ompSync wake schedule
 scripts/sync.sh       copy the library into a watch face repository
+test/run.sh           PC tests (JS simulation, watch timer simulation)
 ```
 
 ## Quick start
@@ -42,6 +43,7 @@ var cgm = require('./cgm')({
   onStatus: function (code) { /* 'NO_DATA' | 'NO_CONN' | 'NO_APP' | 'NO_URL' → send status */ },
   onWakeSchedule: function (next, interval) { /* send to the watch: CGM_WAKE_NEXT, CGM_WAKE_INTERVAL */ }
 });
+var outbox = require('./cgm').outbox('myface');   // outbox.send(msg, label, {key: 'bg'})
 Pebble.addEventListener('ready', function () { cgm.start(); });
 // when the watch sends your REQUEST_BG key: cgm.fetchNow();
 ```
@@ -50,6 +52,7 @@ Pebble.addEventListener('ready', function () { cgm.start(); });
 // src/c/main.c
 #include "cgm.h"
 cgm_wake_init(request_bg_fetch);                                   // in init()
+cgm_send_request(MESSAGE_KEY_REQUEST_BG);                          // in request_bg_fetch()
 cgm_wake_handle_inbox(iter, MESSAGE_KEY_CGM_WAKE_NEXT, MESSAGE_KEY_CGM_WAKE_INTERVAL);  // inbox
 cgm_last_save(PERSIST_KEY_CGM, &last);  /  cgm_last_load(PERSIST_KEY_CGM, &last, 6 * 3600);
 cgm_draw_cloud(ctx, GPoint(x, y), color);                          // if last.fallback

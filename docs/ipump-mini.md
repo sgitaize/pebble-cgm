@@ -11,3 +11,5 @@ iPump-mini reads a MiniMed 780G over Bluetooth and serves a Nightscout-compatibl
 - `windowSec`: how long the server stays reachable after a wake.
 
 `js/cgm.js` converts the times to phone time, fetches 2–3 s after `nextWake`, retries every 3 s inside the window and stays quiet otherwise. Requests made while the app sleeps are refused immediately (connection refused) or answered when the app wakes.
+
+If a window is missed (no new schedule after the requests of a wake), the rhythm may have shifted, e.g. after the app restarted or the pump changed its timing. Both the JS and the watch then search: one request every 15 s, shorter than the 25 s window, for one interval + 1 min. The first answer brings the new schedule and ends the search. While the app stays unreachable the search repeats every 30 min.

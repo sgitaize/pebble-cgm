@@ -29,13 +29,23 @@ Add to `messageKeys` in `package.json` (names are suggestions):
 
 In your configuration page offer: data source (Nightscout / iPump-mini), the Nightscout fields, the iPump-mini server (prefilled) and "Nightscout as fallback".
 
+## 3a. Sending messages
+Send everything through the library's queue (one message in flight, ack timeout, retries):
+```js
+var outbox = require('./cgm').outbox('myface');
+outbox.send(msg, 'BG', { key: 'bg' });          // onReading / onStatus
+outbox.send(wakeMsg, 'wake', { key: 'wake' });  // onWakeSchedule
+```
+Messages with the same `key` replace each other while they wait. Plain `Pebble.sendAppMessage` calls back to back fail with `APP_MSG_BUSY`, and a send that never calls back blocks a hand-written queue.
+
 ## 4. Watch side
 - **Status:** on `NO_DATA`, `NO_CONN`, `NO_URL` clear the value; on `NO_APP` show a hint such as "OPEN APP / IPUMP-MINI"; on `OLD` keep the value (it is just stale).
 - **Last value:** after every valid reading `cgm_last_save()`, at start `cgm_last_load()` with a max age (e.g. 6 h) and show it; compute staleness from `ts`.
-- **Wake timer:** `cgm_wake_init(request_bg_fetch)` in `init()`, `cgm_wake_handle_inbox()` in the inbox handler, `cgm_wake_deinit()` in `deinit()`.
+- **Wake timer:** `cgm_wake_init(request_bg_fetch)` in `init()`, `cgm_wake_handle_inbox()` in the inbox handler, `cgm_wake_deinit()` in `deinit()`. `request_bg_fetch` should call `cgm_send_request(MESSAGE_KEY_REQUEST_BG)` (retries while the outbox is busy).
 - **Bluetooth lost:** show "no connection" immediately (watch side, not the library).
 
 ## 5. Testing
+- `test/run.sh`: PC simulation of the JS and the watch timer (Node, cc), no SDK needed.
 - Nightscout: a mock `/pebble` on `127.0.0.1` in the emulator.
 - iPump-mini: a mock that is reachable only 25 s every 120 s and returns `ompSync` – the watch should fetch ~3 s after each wake and not in between.
 - Fallback: no local server, Nightscout mock – one Nightscout request after ~7 min.
