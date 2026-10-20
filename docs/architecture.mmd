@@ -1,0 +1,30 @@
+flowchart LR
+  subgraph Watch["Pebble watch  ·  c/cgm.c"]
+    WF("<b>Your watch face</b><br/><small>draws value · status · cloud</small>")
+    WT("<b>Wake timer</b><br/><small>asks the phone at the<br/>next reading</small>")
+    LV("<b>Last value</b><br/><small>persisted · ages by timestamp</small>")
+    WT --> WF
+    LV --> WF
+  end
+  subgraph Phone["Phone  ·  js/cgm.js"]
+    OB("<b>Outbox</b><br/><small>ack timeout · coalescing</small>")
+    SC("<b>Scheduler</b><br/><small>learned upload lag · <code>ompSync</code></small>")
+    SR("<b>Source</b><br/><small>Nightscout · iPump-mini · fallback</small><br/><small>parser · mmol auto-detect</small>")
+    SC --> SR
+  end
+  subgraph Src["Data sources"]
+    NS("<b>Nightscout</b><br/><small><code>&lt;url&gt;/pebble</code></small>")
+    OMP("<b>iPump-mini</b><br/><small><code>127.0.0.1:17580/pebble</code></small>")
+  end
+  WT <-->|"REQUEST_BG · wake schedule"| OB
+  OB --- SC
+  SR -->|HTTPS| NS
+  SR -.->|"only while the app is awake"| OMP
+
+  classDef client stroke:#58a6ff,stroke-width:1.5px
+  classDef core stroke:#f0883e,stroke-width:1.5px
+  classDef server stroke:#3fb950,stroke-width:1.5px
+  classDef ext stroke:#a371f7,stroke-width:1.5px
+  class WF client
+  class WT,LV,OB,SC,SR core
+  class NS,OMP ext

@@ -1,8 +1,20 @@
 # pebble-cgm
 
+**English** · [Deutsch](README.de.md)
+
 Shared CGM data logic for **Pebble watch faces**: fetch glucose from **Nightscout** or the **iPump-mini** iPhone app (local, no internet), keep the last value across restarts, and stay in sync with the source – so every CGM watch face does not have to re-implement it.
 
 Used by [CasioCGM](https://github.com/sgitaize/casiocgm), [Nightscout-supercgm](https://github.com/sgitaize/Nightscout-supercgm) and [91 Dub CGM](https://github.com/sgitaize/dubv4cgm).
+
+**Status:** 1.1.0 · used in three watch faces in the Pebble Appstore · actively maintained
+
+## Get it
+
+| | |
+|---|---|
+| **Copy into your face** | `scripts/sync.sh <your-repo>` copies `js/cgm.js` and `c/cgm.{c,h}` into the right folders |
+| **Releases** | [GitHub releases](https://github.com/sgitaize/pebble-cgm/releases/latest) · changes in [CHANGELOG.md](CHANGELOG.md) |
+| **Integration guide** | [docs/integration.md](docs/integration.md) – message keys, config fields, step by step |
 
 > Not a medical device. Watch faces built with this library show information only; treatment decisions belong to your CGM/pump and your care team.
 
@@ -18,17 +30,25 @@ Used by [CasioCGM](https://github.com/sgitaize/casiocgm), [Nightscout-supercgm](
 | **Status** | `OK`, `NO_DATA`, `NO_CONN`, `OLD`, `NO_APP` (iPump-mini unreachable for 15 min: "open the app"), `NO_URL`. |
 | **Robust** | AppMessage queue with ack timeout and coalescing, search after a missed wake window, one request at a time, guard against XHRs that never call back, mmol/L auto-detection. |
 
-## Files
+## Architecture
 
-```
-js/cgm.js     PebbleKit JS module (copy to src/pkjs/ or src/js/, needs "enableMultiJS": true)
-c/cgm.h       watch side: status codes, last-value storage, wake timer, cloud icon
-c/cgm.c
-docs/integration.md   step-by-step integration, message keys, config fields
-docs/ipump-mini.md    the ompSync wake schedule
-scripts/sync.sh       copy the library into a watch face repository
-test/run.sh           PC tests (JS simulation, watch timer simulation)
-```
+<p align="center"><img src="docs/architecture.png" alt="Architecture: on the watch, cgm.c keeps the last value and runs a wake timer for your watch face; on the phone, cgm.js has an outbox, a scheduler and the source logic that talks to Nightscout or iPump-mini" width="100%"></p>
+
+<sub>Source: <a href="docs/architecture.mmd">docs/architecture.mmd</a> (Mermaid)</sub>
+
+**How it works**
+- **Two halves, one contract.** `js/cgm.js` runs in PebbleKit JS on the phone and does the networking; `c/cgm.c` runs on the watch and keeps time, state and the last value. They talk through a handful of AppMessage keys.
+- **Fetch when there is something new.** The scheduler plans the next request from the reading's timestamp plus a learned upload lag (Nightscout) or from the iPump-mini wake schedule (`ompSync`).
+- **The watch keeps the beat.** JS timers are throttled in the background, so the watch wakes up itself and sends `REQUEST_BG` exactly when the next reading is due.
+- **Nothing gets lost.** The outbox sends one message at a time, waits for an acknowledgement (with timeout), merges outdated messages and retries.
+
+| Part | Where | What it does |
+|---|---|---|
+| Phone module | `js/cgm.js` | source, fallback, scheduler, parser, outbox (needs `"enableMultiJS": true`) |
+| Watch module | `c/cgm.h`, `c/cgm.c` | status codes, last-value storage, wake timer, cloud icon |
+| Docs | `docs/integration.md`, `docs/ipump-mini.md` | integration step by step, the `ompSync` wake schedule |
+| Sync script | `scripts/sync.sh` | copies the library into a watch face repository |
+| Tests | `test/run.sh` | JS simulation and a watch timer simulation on the PC |
 
 ## Quick start
 
@@ -59,6 +79,12 @@ cgm_draw_cloud(ctx, GPoint(x, y), color);                          // if last.fa
 ```
 
 Details: [docs/integration.md](docs/integration.md).
+
+## Status & roadmap
+
+- **1.1.0** (October 2026): reliability fixes – the watch no longer stops updating, a shifted iPump-mini rhythm is found again, lost requests are retried.
+- Used in [CasioCGM](https://github.com/sgitaize/casiocgm), [Nightscout-supercgm](https://github.com/sgitaize/Nightscout-supercgm) and [91 Dub CGM](https://github.com/sgitaize/dubv4cgm).
+- Ideas and bugs are welcome as [issues](https://github.com/sgitaize/pebble-cgm/issues).
 
 ## License
 
